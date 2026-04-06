@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DON'T BREAK THE CHAIN</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #000000;
+    --white: #ffffff;
+    --mid: #888888;
+    --light: #cccccc;
+    --xlight: #eeeeee;
+  }
+
+  body {
+    background: var(--white);
+    color: var(--black);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    min-height: 100vh;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+  }
+
+  .container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 16px 14px 48px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    border-bottom: 3px solid var(--black);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 11vw, 56px);
+    letter-spacing: 3px;
+    line-height: 1;
+    color: var(--black);
+  }
+
+  /* ── STATS ROW ── */
+  .streak-display {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 2px solid var(--black);
+    margin-bottom: 14px;
+  }
+
+  .stat-block {
+    text-align: center;
+    padding: 10px 4px;
+    border-right: 2px solid var(--black);
+  }
+
+  .stat-block:last-child { border-right: none; }
+
+  .stat-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    line-height: 1;
+    color: var(--black);
+  }
+
+  .stat-number.zero { color: var(--mid); }
+
+  .stat-label {
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-top: 3px;
+  }
+
+  /* ── MOTIVATION ── */
+  .motivation {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(18px, 5vw, 24px);
+    letter-spacing: 2px;
+    text-align: center;
+    border: 2px solid var(--black);
+    padding: 10px 10px;
+    margin-bottom: 14px;
+    background: var(--black);
+    color: var(--white);
+  }
+
+  /* ── CALENDAR ── */
+  .month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .month-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 2px;
+  }
+
+  .month-nav {
+    display: flex;
+    border: 2px solid var(--black);
+  }
+
+  .nav-btn {
+    background: var(--white);
+    border: none;
+    border-right: 2px solid var(--black);
+    color: var(--black);
+    font-family: 'Courier Prime', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 6px 16px;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .nav-btn:last-child { border-right: none; }
+  .nav-btn:active { background: var(--black); color: var(--white); }
+
+  /* Calendar grid — kept compact, spatial/pattern-based */
+  .day-labels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    margin-bottom: 3px;
+  }
+
+  .day-label {
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--mid);
+    text-transform: uppercase;
+    padding: 2px 0;
+    font-weight: 700;
+  }
+
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  .day-cell {
+    aspect-ratio: 1;
+    border: 1.5px solid var(--light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    font-family: 'Courier Prime', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--mid);
+    user-select: none;
+    background: var(--white);
+  }
+
+  .day-cell.empty {
+    border-color: transparent;
+    cursor: default;
+    background: transparent;
+  }
+
+  .day-cell.future {
+    border: 1.5px dotted var(--xlight);
+    color: var(--xlight);
+    cursor: not-allowed;
+  }
+
+  .day-cell.today {
+    border: 2.5px solid var(--black);
+    color: var(--black);
+  }
+
+  .day-cell.missed {
+    border: 1.5px solid var(--xlight);
+    color: var(--xlight);
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 3px,
+      var(--xlight) 3px,
+      var(--xlight) 4px
+    );
+  }
+
+  .day-cell.completed {
+    background: var(--black);
+    border-color: var(--black);
+    color: var(--white);
+  }
+
+  .day-cell.completed .day-num { display: none; }
+
+  .day-cell.completed::after {
+    content: '✕';
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1;
+  }
+
+  .day-cell.today.completed {
+    background: var(--black);
+    border: 3px double var(--black);
+    outline: 1px solid var(--black);
+    outline-offset: 2px;
+  }
+
+  .day-num { line-height: 1; }
+
+  /* ── LOG SECTION ── */
+  .log-section {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .log-btn {
+    background: var(--black);
+    border: 3px solid var(--black);
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 4px;
+    padding: 16px 20px;
+    cursor: pointer;
+    text-transform: uppercase;
+    width: 100%;
+    text-align: center;
+  }
+
+  .log-btn:active { background: var(--white); color: var(--black); }
+
+  .log-btn.already-done {
+    background: var(--white);
+    color: var(--black);
+    border: 3px solid var(--black);
+    cursor: default;
+  }
+
+  .log-hint {
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--mid);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .note-input-wrap { display: none; }
+  .note-input-wrap.visible { display: block; }
+
+  .note-input {
+    width: 100%;
+    background: var(--white);
+    border: 2px solid var(--black);
+    color: var(--black);
+    font-family: 'Courier Prime', monospace;
+    font-size: 18px;
+    padding: 10px 12px;
+    resize: none;
+    height: 64px;
+  }
+
+  .note-input::placeholder { color: var(--mid); }
+  .note-input:focus { outline: none; }
+
+  /* ── CHAIN VIS ── */
+  .chain-section {
+    margin-top: 16px;
+    border-top: 2px solid var(--black);
+    padding-top: 12px;
+  }
+
+  .chain-vis {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 20px;
+  }
+
+  .link {
+    width: 18px;
+    height: 12px;
+    background: var(--black);
+    margin: 2px 1px;
+    display: inline-block;
+  }
+
+  .link.broken {
+    background: var(--white);
+    border: 1.5px dashed var(--light);
+  }
+
+  .chain-label {
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    margin-top: 16px;
+    border: 1.5px solid var(--light);
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .legend-swatch {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--light);
+  }
+
+  .legend-swatch.s-done { background: var(--black); border-color: var(--black); }
+  .legend-swatch.s-today { background: var(--white); border: 2.5px solid var(--black); }
+  .legend-swatch.s-missed {
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, var(--xlight) 3px, var(--xlight) 4px);
+    border-color: var(--xlight);
+  }
+  .legend-swatch.s-future { background: var(--white); border: 1.5px dotted var(--xlight); }
+
+  /* ── RULES ── */
+  .rules-section {
+    margin-top: 16px;
+    border-top: 1.5px solid var(--light);
+    padding-top: 12px;
+  }
+
+  .rules-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: var(--mid);
+    margin-bottom: 8px;
+  }
+
+  .rule {
+    font-size: 18px;
+    color: var(--mid);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--xlight);
+    display: flex;
+    gap: 10px;
+    line-height: 1.3;
+  }
+
+  .rule-icon { flex-shrink: 0; font-weight: 700; color: var(--black); }
+
+  .reset-link {
+    display: block;
+    text-align: center;
+    margin-top: 32px;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--light);
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  .reset-link:active { color: var(--black); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>DON'T BREAK THE CHAIN</h1>
+  </header>
+
+  <div class="streak-display">
+    <div class="stat-block">
+      <div class="stat-number" id="current-streak">0</div>
+      <div class="stat-label">Streak</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-number" id="days-hit">0</div>
+      <div class="stat-label">Hit</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-number" id="days-left">30</div>
+      <div class="stat-label">Left</div>
+    </div>
+  </div>
+
+  <div class="motivation" id="motivation-msg">THE CHAIN STARTS TODAY</div>
+
+  <div class="month-header">
+    <div class="month-title" id="month-label">—</div>
+    <div class="month-nav">
+      <button class="nav-btn" id="prev-month">◂</button>
+      <button class="nav-btn" id="next-month">▸</button>
+    </div>
+  </div>
+
+  <div class="day-labels">
+    <div class="day-label">Su</div>
+    <div class="day-label">Mo</div>
+    <div class="day-label">Tu</div>
+    <div class="day-label">We</div>
+    <div class="day-label">Th</div>
+    <div class="day-label">Fr</div>
+    <div class="day-label">Sa</div>
+  </div>
+
+  <div class="calendar" id="calendar"></div>
+
+  <div class="log-section">
+    <button class="log-btn" id="log-btn">LOG TODAY</button>
+    <div class="note-input-wrap" id="note-wrap">
+      <textarea class="note-input" id="note-input" placeholder="what did you hit? (optional)"></textarea>
+    </div>
+    <div class="log-hint" id="log-hint">tap to mark today complete</div>
+  </div>
+
+  <div class="chain-section">
+    <div class="chain-vis" id="chain-vis"></div>
+    <div class="chain-label" id="chain-label">no chain yet — start today</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch s-done"></div> Done</div>
+    <div class="legend-item"><div class="legend-swatch s-today"></div> Today</div>
+    <div class="legend-item"><div class="legend-swatch s-missed"></div> Missed</div>
+    <div class="legend-item"><div class="legend-swatch s-future"></div> Future</div>
+  </div>
+
+  <div class="rules-section">
+    <div class="rules-title">// THE CODE</div>
+    <div class="rule"><span class="rule-icon">»</span> Show up every day. No excuses.</div>
+    <div class="rule"><span class="rule-icon">»</span> Log it or lose it.</div>
+    <div class="rule"><span class="rule-icon">»</span> One rest day per week — plan it.</div>
+    <div class="rule"><span class="rule-icon">»</span> Don't break the chain.</div>
+  </div>
+
+  <span class="reset-link" id="reset-btn">[ reset tracker ]</span>
+</div>
+
+<script>
+  const STORAGE_KEY = 'gym_chain_v2';
+  const TODAY = new Date();
+  TODAY.setHours(0,0,0,0);
+
+  function load() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { logs: {}, startDate: TODAY.toISOString() };
+    } catch { return { logs: {}, startDate: TODAY.toISOString() }; }
+  }
+
+  function save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  let data = load();
+  let viewYear = TODAY.getFullYear();
+  let viewMonth = TODAY.getMonth();
+
+  function dateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function todayKey() { return dateKey(TODAY); }
+  function isCompleted(d) { return !!data.logs[dateKey(d)]; }
+
+  function computeStreak() {
+    let streak = 0;
+    let check = new Date(TODAY);
+    while (isCompleted(check)) {
+      streak++;
+      check.setDate(check.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function computeHit() { return Object.keys(data.logs).length; }
+
+  function computeDaysLeft() {
+    const start = new Date(data.startDate);
+    start.setHours(0,0,0,0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 30);
+    return Math.max(0, Math.ceil((end - TODAY) / (1000*60*60*24)));
+  }
+
+  function getMotivation(streak) {
+    if (streak === 0) return "THE CHAIN STARTS TODAY";
+    if (streak === 1) return "ONE DOWN. KEEP MOVING.";
+    if (streak < 5) return `${streak} DAYS STRONG. LOCK IT IN.`;
+    if (streak < 10) return `${streak} DAYS. THE CHAIN IS REAL.`;
+    if (streak < 20) return `${streak} DAYS. CAN'T STOP YOU NOW.`;
+    if (streak < 30) return `${streak} DAYS. ALMOST LEGENDARY.`;
+    return "30 DAYS. UNBREAKABLE.";
+  }
+
+  function renderStats() {
+    const streak = computeStreak();
+    const el = document.getElementById('current-streak');
+    el.textContent = streak;
+    el.className = 'stat-number' + (streak === 0 ? ' zero' : '');
+    document.getElementById('days-hit').textContent = computeHit();
+    document.getElementById('days-left').textContent = computeDaysLeft();
+    document.getElementById('motivation-msg').textContent = getMotivation(streak);
+  }
+
+  function renderChainVis() {
+    const streak = computeStreak();
+    const vis = document.getElementById('chain-vis');
+    const label = document.getElementById('chain-label');
+    vis.innerHTML = '';
+    if (streak === 0) { label.textContent = 'no chain yet — start today'; return; }
+    const show = Math.min(streak, 20);
+    for (let i = 0; i < show; i++) {
+      const link = document.createElement('div');
+      link.className = 'link';
+      vis.appendChild(link);
+    }
+    for (let i = 0; i < 5; i++) {
+      const link = document.createElement('div');
+      link.className = 'link broken';
+      vis.appendChild(link);
+    }
+    label.textContent = `${streak}-day chain — don't break it`;
+  }
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function renderCalendar() {
+    const cal = document.getElementById('calendar');
+    cal.innerHTML = '';
+    document.getElementById('month-label').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const lastDay = new Date(viewYear, viewMonth + 1, 0);
+    const startDow = firstDay.getDay();
+
+    for (let i = 0; i < startDow; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'day-cell empty';
+      cal.appendChild(cell);
+    }
+
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const cellDate = new Date(viewYear, viewMonth, d);
+      cellDate.setHours(0,0,0,0);
+      const isToday = cellDate.getTime() === TODAY.getTime();
+      const isFuture = cellDate > TODAY;
+      const done = isCompleted(cellDate);
+
+      const cell = document.createElement('div');
+      let classes = ['day-cell'];
+      if (isFuture) classes.push('future');
+      if (isToday) classes.push('today');
+      if (done) classes.push('completed');
+      else if (!isFuture && !isToday) classes.push('missed');
+      cell.className = classes.join(' ');
+
+      const num = document.createElement('span');
+      num.className = 'day-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (!isFuture) {
+        cell.addEventListener('click', () => {
+          const key = dateKey(cellDate);
+          if (data.logs[key]) delete data.logs[key];
+          else data.logs[key] = { ts: Date.now(), note: '' };
+          save(data);
+          render();
+        });
+      }
+
+      cal.appendChild(cell);
+    }
+  }
+
+  function renderLogBtn() {
+    const btn = document.getElementById('log-btn');
+    const hint = document.getElementById('log-hint');
+    const noteWrap = document.getElementById('note-wrap');
+    const done = isCompleted(TODAY);
+
+    if (done) {
+      btn.textContent = '✓ TODAY IS DONE';
+      btn.disabled = true;
+      btn.className = 'log-btn already-done';
+      hint.textContent = 'tap a past day to toggle it';
+      noteWrap.classList.remove('visible');
+    } else {
+      btn.textContent = 'LOG TODAY';
+      btn.disabled = false;
+      btn.className = 'log-btn';
+      hint.textContent = 'tap to mark today complete';
+      noteWrap.classList.add('visible');
+    }
+  }
+
+  function render() {
+    renderStats();
+    renderCalendar();
+    renderLogBtn();
+    renderChainVis();
+  }
+
+  document.getElementById('log-btn').addEventListener('click', () => {
+    const note = document.getElementById('note-input').value.trim();
+    data.logs[todayKey()] = { ts: Date.now(), note };
+    save(data);
+    document.getElementById('note-input').value = '';
+    render();
+  });
+
+  document.getElementById('prev-month').addEventListener('click', () => {
+    if (--viewMonth < 0) { viewMonth = 11; viewYear--; }
+    renderCalendar();
+  });
+
+  document.getElementById('next-month').addEventListener('click', () => {
+    if (++viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderCalendar();
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    if (confirm('Reset ALL progress? Cannot be undone.')) {
+      data = { logs: {}, startDate: TODAY.toISOString() };
+      save(data);
+      render();
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
