@@ -32,6 +32,77 @@
     padding: 16px 14px 48px;
   }
 
+  .tracker-bar {
+    border: 2px solid var(--black);
+    padding: 10px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tracker-label {
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .tracker-select {
+    width: 100%;
+    border: 2px solid var(--black);
+    background: var(--white);
+    color: var(--black);
+    font-family: 'Courier Prime', monospace;
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+
+  .tracker-add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tracker-input {
+    flex: 1;
+    border: 2px solid var(--black);
+    background: var(--white);
+    color: var(--black);
+    font-family: 'Courier Prime', monospace;
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+
+  .tracker-input::placeholder { color: var(--mid); }
+  .tracker-input:focus { outline: none; }
+
+  .tracker-add-btn {
+    border: 2px solid var(--black);
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Courier Prime', monospace;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+
+  .tracker-add-btn:active { background: var(--white); color: var(--black); }
+
+  .tracker-delete-btn {
+    border: 2px solid var(--black);
+    background: var(--white);
+    color: var(--black);
+    font-family: 'Courier Prime', monospace;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+
+  .tracker-delete-btn:active { background: var(--black); color: var(--white); }
+
   /* ── HEADER ── */
   header {
     text-align: center;
@@ -51,7 +122,7 @@
   /* ── STATS ROW ── */
   .streak-display {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     border: 2px solid var(--black);
     margin-bottom: 14px;
   }
@@ -399,6 +470,16 @@
     <h1>DON'T BREAK THE CHAIN</h1>
   </header>
 
+  <div class="tracker-bar">
+    <div class="tracker-label">Tracker</div>
+    <select class="tracker-select" id="tracker-select"></select>
+    <div class="tracker-add-row">
+      <input class="tracker-input" id="tracker-input" type="text" maxlength="28" placeholder="new tracker (gym, learn, write)">
+      <button class="tracker-add-btn" id="tracker-add-btn">ADD</button>
+      <button class="tracker-delete-btn" id="tracker-delete-btn">DELETE</button>
+    </div>
+  </div>
+
   <div class="streak-display">
     <div class="stat-block">
       <div class="stat-number" id="current-streak">0</div>
@@ -407,10 +488,6 @@
     <div class="stat-block">
       <div class="stat-number" id="days-hit">0</div>
       <div class="stat-label">Hit</div>
-    </div>
-    <div class="stat-block">
-      <div class="stat-number" id="days-left">30</div>
-      <div class="stat-label">Left</div>
     </div>
   </div>
 
@@ -468,14 +545,68 @@
 </div>
 
 <script>
-  const STORAGE_KEY = 'gym_chain_v2';
+  const STORAGE_KEY = 'chain_trackers_v1';
   const TODAY = new Date();
   TODAY.setHours(0,0,0,0);
 
+  const DEFAULT_TRACKER = {
+    id: 'my-chain',
+    name: 'my-chain',
+    startDate: TODAY.toISOString(),
+    logs: {}
+  };
+
+  function normalizeTrackerName(raw) {
+    return raw.toLowerCase().replace(/[^a-z0-9\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 28);
+  }
+
+  function trackerIdFromInput(name) {
+    const base = normalizeTrackerName(name).replace(/-chain$/, '');
+    if (!base) return '';
+    return `${base}-chain`.slice(0, 28);
+  }
+
+  function toTitle(text) {
+    return text.replace(/-/g, ' ');
+  }
+
+  function createTracker(name) {
+    const normalized = trackerIdFromInput(name);
+    if (!normalized) return null;
+    return {
+      id: normalized,
+      name: normalized,
+      startDate: TODAY.toISOString(),
+      logs: {}
+    };
+  }
+
   function load() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { logs: {}, startDate: TODAY.toISOString() };
-    } catch { return { logs: {}, startDate: TODAY.toISOString() }; }
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (parsed?.trackers && parsed?.activeTrackerId) return parsed;
+    } catch {}
+
+    try {
+      const legacy = JSON.parse(localStorage.getItem('gym_chain_v2'));
+      if (legacy && typeof legacy === 'object') {
+        return {
+          activeTrackerId: DEFAULT_TRACKER.id,
+          trackers: {
+            [DEFAULT_TRACKER.id]: {
+              ...DEFAULT_TRACKER,
+              startDate: legacy.startDate || TODAY.toISOString(),
+              logs: legacy.logs || {}
+            }
+          }
+        };
+      }
+    } catch {}
+
+    return {
+      activeTrackerId: DEFAULT_TRACKER.id,
+      trackers: { [DEFAULT_TRACKER.id]: { ...DEFAULT_TRACKER } }
+    };
   }
 
   function save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
@@ -484,12 +615,29 @@
   let viewYear = TODAY.getFullYear();
   let viewMonth = TODAY.getMonth();
 
+  function trackerIds() {
+    return Object.keys(data.trackers || {});
+  }
+
+  function currentTracker() {
+    if (!data.trackers) data.trackers = {};
+    if (!data.activeTrackerId || !data.trackers[data.activeTrackerId]) {
+      const first = trackerIds()[0];
+      if (first) data.activeTrackerId = first;
+      else {
+        data.trackers[DEFAULT_TRACKER.id] = { ...DEFAULT_TRACKER };
+        data.activeTrackerId = DEFAULT_TRACKER.id;
+      }
+    }
+    return data.trackers[data.activeTrackerId];
+  }
+
   function dateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
   function todayKey() { return dateKey(TODAY); }
-  function isCompleted(d) { return !!data.logs[dateKey(d)]; }
+  function isCompleted(d) { return !!currentTracker().logs[dateKey(d)]; }
 
   function computeStreak() {
     let streak = 0;
@@ -501,15 +649,7 @@
     return streak;
   }
 
-  function computeHit() { return Object.keys(data.logs).length; }
-
-  function computeDaysLeft() {
-    const start = new Date(data.startDate);
-    start.setHours(0,0,0,0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 30);
-    return Math.max(0, Math.ceil((end - TODAY) / (1000*60*60*24)));
-  }
+  function computeHit() { return Object.keys(currentTracker().logs).length; }
 
   function getMotivation(streak) {
     if (streak === 0) return "THE CHAIN STARTS TODAY";
@@ -523,20 +663,25 @@
 
   function renderStats() {
     const streak = computeStreak();
+    const tracker = currentTracker();
     const el = document.getElementById('current-streak');
     el.textContent = streak;
     el.className = 'stat-number' + (streak === 0 ? ' zero' : '');
     document.getElementById('days-hit').textContent = computeHit();
-    document.getElementById('days-left').textContent = computeDaysLeft();
     document.getElementById('motivation-msg').textContent = getMotivation(streak);
+    document.getElementById('log-hint').textContent = `tap to mark today complete for ${toTitle(tracker.name)}`;
   }
 
   function renderChainVis() {
     const streak = computeStreak();
     const vis = document.getElementById('chain-vis');
     const label = document.getElementById('chain-label');
+    const tracker = currentTracker();
     vis.innerHTML = '';
-    if (streak === 0) { label.textContent = 'no chain yet — start today'; return; }
+    if (streak === 0) {
+      label.textContent = `no ${toTitle(tracker.name)} yet - start today`;
+      return;
+    }
     const show = Math.min(streak, 20);
     for (let i = 0; i < show; i++) {
       const link = document.createElement('div');
@@ -548,10 +693,29 @@
       link.className = 'link broken';
       vis.appendChild(link);
     }
-    label.textContent = `${streak}-day chain — don't break it`;
+    label.textContent = `${streak}-day ${toTitle(tracker.name)} - don't break it`;
   }
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function renderTrackerSelect() {
+    const select = document.getElementById('tracker-select');
+    const deleteBtn = document.getElementById('tracker-delete-btn');
+    const ids = trackerIds().sort();
+    select.innerHTML = '';
+
+    for (const id of ids) {
+      const tracker = data.trackers[id];
+      const option = document.createElement('option');
+      option.value = tracker.id;
+      option.textContent = toTitle(tracker.name);
+      if (tracker.id === data.activeTrackerId) option.selected = true;
+      select.appendChild(option);
+    }
+
+    deleteBtn.disabled = ids.length === 0;
+    deleteBtn.textContent = 'DELETE';
+  }
 
   function renderCalendar() {
     const cal = document.getElementById('calendar');
@@ -591,8 +755,9 @@
       if (!isFuture) {
         cell.addEventListener('click', () => {
           const key = dateKey(cellDate);
-          if (data.logs[key]) delete data.logs[key];
-          else data.logs[key] = { ts: Date.now(), note: '' };
+          const tracker = currentTracker();
+          if (tracker.logs[key]) delete tracker.logs[key];
+          else tracker.logs[key] = { ts: Date.now(), note: '' };
           save(data);
           render();
         });
@@ -603,10 +768,13 @@
   }
 
   function renderLogBtn() {
+    const tracker = currentTracker();
     const btn = document.getElementById('log-btn');
     const hint = document.getElementById('log-hint');
     const noteWrap = document.getElementById('note-wrap');
     const done = isCompleted(TODAY);
+    const noteInput = document.getElementById('note-input');
+    noteInput.placeholder = `what did you do for ${toTitle(tracker.name)}? (optional)`;
 
     if (done) {
       btn.textContent = '✓ TODAY IS DONE';
@@ -624,6 +792,8 @@
   }
 
   function render() {
+    currentTracker();
+    renderTrackerSelect();
     renderStats();
     renderCalendar();
     renderLogBtn();
@@ -632,9 +802,59 @@
 
   document.getElementById('log-btn').addEventListener('click', () => {
     const note = document.getElementById('note-input').value.trim();
-    data.logs[todayKey()] = { ts: Date.now(), note };
+    currentTracker().logs[todayKey()] = { ts: Date.now(), note };
     save(data);
     document.getElementById('note-input').value = '';
+    render();
+  });
+
+  document.getElementById('tracker-select').addEventListener('change', (event) => {
+    data.activeTrackerId = event.target.value;
+    save(data);
+    render();
+  });
+
+  function addTrackerFromInput() {
+    const input = document.getElementById('tracker-input');
+    const tracker = createTracker(input.value);
+    if (!tracker) return;
+
+    if (data.trackers[tracker.id]) {
+      data.activeTrackerId = tracker.id;
+    } else {
+      data.trackers[tracker.id] = tracker;
+      data.activeTrackerId = tracker.id;
+    }
+
+    save(data);
+    input.value = '';
+    render();
+  }
+
+  document.getElementById('tracker-add-btn').addEventListener('click', addTrackerFromInput);
+  document.getElementById('tracker-input').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      addTrackerFromInput();
+    }
+  });
+
+  document.getElementById('tracker-delete-btn').addEventListener('click', () => {
+    const ids = trackerIds();
+    if (ids.length === 0) return;
+
+    const tracker = currentTracker();
+    if (!confirm(`Delete ${toTitle(tracker.name)}? This tracker and its logs will be removed.`)) return;
+
+    delete data.trackers[tracker.id];
+    let remaining = trackerIds().sort();
+    if (remaining.length === 0) {
+      const fallback = { ...DEFAULT_TRACKER, logs: {}, startDate: TODAY.toISOString() };
+      data.trackers[fallback.id] = fallback;
+      remaining = trackerIds().sort();
+    }
+    data.activeTrackerId = remaining[0];
+    save(data);
     render();
   });
 
@@ -649,8 +869,10 @@
   });
 
   document.getElementById('reset-btn').addEventListener('click', () => {
-    if (confirm('Reset ALL progress? Cannot be undone.')) {
-      data = { logs: {}, startDate: TODAY.toISOString() };
+    const tracker = currentTracker();
+    if (confirm(`Reset ${toTitle(tracker.name)} progress? Cannot be undone.`)) {
+      tracker.logs = {};
+      tracker.startDate = TODAY.toISOString();
       save(data);
       render();
     }
